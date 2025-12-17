@@ -96,7 +96,7 @@ const OutputPanel = forwardRef<OutputPanelHandle, Props>(
               ? "bg-black text-green-400"
               : "bg-white text-gray-800"}
           `}
-          style={{ whiteSpace: "pre" }}
+          style={{ whiteSpace: "break-spaces" }}
         >
           {output}
           {isRunning && (
