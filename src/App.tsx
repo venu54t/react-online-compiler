@@ -1,9 +1,10 @@
-import React, { JSX, useEffect, useRef, useState } from "react";
+import React, { JSX, use, useEffect, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
 import wsClient, { Message } from "./services/ws";
 import OutputPanel, { OutputPanelHandle } from "./components/OutputPanel";
 import Toolbar from "./components/Toolbar";
 import EditorPanel from "./components/EditorPanel";
+import { useIsDesktop } from "./utils/editor-panel";
 
 const DEFAULT_OUTPUT_WIDTH = 480;
 type Theme = "dark" | "light";
@@ -18,12 +19,23 @@ export default function App(): JSX.Element {
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [output, setOutput] = useState("");
   const outputRef = useRef<OutputPanelHandle>(null);
+  const isDesktop = useIsDesktop();
+  const INITIAL_SHEET_HEIGHT = Math.round(window.innerHeight * 0.25);
 
+  const [outputSheetHeight, setOutputSheetHeight] = useState(
+    Math.round(INITIAL_SHEET_HEIGHT)
+  );
 
+  const draggingSheetRef = useRef(false);
 
   function startDragging() {
     draggingRef.current = true;
     document.body.style.cursor = "col-resize";
+  }
+
+  function startSheetDrag() {
+    draggingSheetRef.current = true;
+    document.body.style.cursor = "row-resize";
   }
 
 
@@ -60,6 +72,16 @@ export default function App(): JSX.Element {
       console.error("Invalid shared code URL", err);
     }
   }, []);
+
+  useEffect(() => {
+    if (!isDesktop) {
+      setOutputWidth(DEFAULT_OUTPUT_WIDTH);
+    }
+    else {
+      setOutputSheetHeight(INITIAL_SHEET_HEIGHT);
+    }
+  }, [isDesktop]);
+
 
   function handleMessage(msg: Message) {
     switch (msg.type) {
@@ -134,14 +156,42 @@ export default function App(): JSX.Element {
     alert("Share link copied!");
   }
 
-  // Handle drag resize
+  // Handle smaller resize
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      if (!draggingSheetRef.current) return;
+
+      const newHeight = window.innerHeight - e.clientY;
+
+      const min = INITIAL_SHEET_HEIGHT;
+      const max = window.innerHeight - INITIAL_SHEET_HEIGHT;
+
+      setOutputSheetHeight(
+        Math.max(min, Math.min(max, newHeight))
+      );
+    }
+
+    function onUp() {
+      draggingSheetRef.current = false;
+      document.body.style.cursor = "";
+    }
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  // Handle desktop resize
   useEffect(() => {
     function onMove(e: MouseEvent) {
       if (!draggingRef.current || !containerRef.current) return;
 
       const rect = containerRef.current.getBoundingClientRect();
       const newWidth = rect.right - e.clientX;
-
       const minWidth = 200;
       const maxWidth = rect.width - 400;
 
@@ -177,22 +227,57 @@ export default function App(): JSX.Element {
           theme={theme}
           toggleTheme={() => setTheme(t => (t === "dark" ? "light" : "dark"))}
           shareCode={shareCode}
+          onEditorFocus={() => {
+            if (!isDesktop) {
+              setOutputSheetHeight(INITIAL_SHEET_HEIGHT);
+            }
+          }}
         />
 
-        <div
+        {isDesktop && <div
           onMouseDown={startDragging}
           className="w-1px cursor-col-resize middle-divider"
-        />
+        />}
 
-        <OutputPanel
-          ref={outputRef}
-          style={{ width: outputWidth, overflow: "auto" }}
-          output={output}
-          onSend={sendStdin}
-          onClear={clearOutput}
-          isRunning={isRunning}
-          theme={theme}
-        />
+        {/* DESKTOP OUTPUT */}
+        {isDesktop && (
+          <OutputPanel
+            ref={outputRef}
+            style={{ width: outputWidth }}
+            output={output}
+            onSend={sendStdin}
+            onClear={clearOutput}
+            isRunning={isRunning}
+            theme={theme}
+          />
+        )}
+
+        {/* MOBILE / TABLET OUTPUT BOTTOM SHEET */}
+        {!isDesktop && (
+          <div
+            className={`fixed left-0 right-0 bottom-0 z-100000 border-t flex flex-col ${theme === "dark" ? "bg-slate-900" : "bg-output-panel-header"} `}
+            style={{ height: outputSheetHeight }}
+          >
+            {/* Drag Handle */}
+            <div
+              onMouseDown={startSheetDrag}
+              className="cursor-row-resize flex items-center justify-center"
+            >
+              <div className="w-10 h-1 rounded bg-slate-500" />
+            </div>
+
+            <OutputPanel
+              ref={outputRef}
+              style={{ height: "100%" }}
+              output={output}
+              onSend={sendStdin}
+              onClear={clearOutput}
+              isRunning={isRunning}
+              theme={theme}
+            />
+          </div>
+        )}
+
 
       </div>
     </div>

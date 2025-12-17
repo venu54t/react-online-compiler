@@ -32,6 +32,10 @@ body {
 
 .dark {
 
+  .border-t {
+    border-color: rgb(51 65 85 / var(--tw-bg-opacity, 1));
+  }
+
   .border-b {
     border-color: rgb(51 65 85 / var(--tw-bg-opacity, 1)) !important;
   }
@@ -64,6 +68,11 @@ body {
 }
 
 .light {
+
+  .border-t {
+    border-color: #d3dce6;
+  }
+
   .border-b {
     border-color: #d3dce6
   }
@@ -91,5 +100,9 @@ body {
   }
   .filename-bg {
     background-color: #fffffe;
+  }
+
+  .bg-output-panel-header {
+    background-color: #f9fafb !important;
   }
 }

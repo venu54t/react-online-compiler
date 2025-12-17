@@ -5,6 +5,8 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useIsDesktop } from "../utils/editor-panel";
+import InfoTooltip from "./ToolTip";
 
 export type OutputPanelHandle = {
   focus: () => void;
@@ -24,6 +26,7 @@ const OutputPanel = forwardRef<OutputPanelHandle, Props>(
     const containerRef = useRef<HTMLDivElement>(null);
     const [buffer, setBuffer] = useState("");
     const [blink, setBlink] = useState(true);
+    const isDesktop = useIsDesktop();
 
     // Expose focus() to parent
     useImperativeHandle(ref, () => ({
@@ -74,10 +77,11 @@ const OutputPanel = forwardRef<OutputPanelHandle, Props>(
     }
 
     return (
-      <div className="w-[480px] flex flex-col" style={style}>
-        <div className="px-3 py-2 flex justify-between border-b">
-          <strong className="px-2 py-1 rounded border-slate-700 filename-color text-slate-300">
+      <div className="w-full lg:w-[480px] flex flex-col" style={style}>
+        <div className={`px-3 py-2 flex justify-between border-b ${theme === "dark" ? "border-slate-700" : "border-gray-300"}`}>
+          <strong className="px-2 flex items-center rounded border-slate-700 filename-color text-slate-300">
             Output
+            <span className="ml-2"><InfoTooltip theme={theme} text="Run the code to see the output" /></span>
           </strong>
           <button
             onClick={onClear}
@@ -96,7 +100,7 @@ const OutputPanel = forwardRef<OutputPanelHandle, Props>(
               ? "bg-black text-green-400"
               : "bg-white text-gray-800"}
           `}
-          style={{ whiteSpace: "break-spaces" }}
+          style={{ whiteSpace: "break-spaces", overflow: "auto" }}
         >
           {output}
           {isRunning && (

@@ -12,7 +12,7 @@ import ShareIcon from "../svg/ShareIcon";
 import DarkThemeIcon from "../svg/DarkThemeIcon";
 import LightThemeIcon from "../svg/LightThemeIcon";
 import RunIcon from "../svg/RunIcon";
-import { getQueryParam } from "../utils/editor-panel";
+import { getQueryParam, useIsDesktop } from "../utils/editor-panel";
 
 type Props = {
   language: string;
@@ -22,6 +22,7 @@ type Props = {
   theme: "dark" | "light";
   toggleTheme: () => void;
   shareCode: () => void;
+  onEditorFocus?: () => void;
 };
 
 const EditorPanel = forwardRef<any, Props>(
@@ -34,6 +35,7 @@ const EditorPanel = forwardRef<any, Props>(
       theme,
       toggleTheme,
       shareCode,
+      onEditorFocus,
     },
     ref
   ) => {
@@ -42,6 +44,7 @@ const EditorPanel = forwardRef<any, Props>(
     );
 
     const pendingCodeRef = useRef<string | null>(null);
+    const isDesktop = useIsDesktop();
     useEffect(() => {
       const share = getQueryParam("share");
       if (!share) return;
@@ -69,6 +72,10 @@ const EditorPanel = forwardRef<any, Props>(
 
     const handleMount: OnMount = (editor) => {
       editorRef.current = editor;
+
+      editor.onDidFocusEditorText(() => {
+    onEditorFocus?.();
+  });
 
       if (pendingCodeRef.current) {
         editor.setValue(pendingCodeRef.current);
@@ -119,7 +126,7 @@ const EditorPanel = forwardRef<any, Props>(
     }
 
     return (
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-[50vh] lg:min-h-0">
         {/* Top Bar */}
         <div
           className={`flex ${theme === "dark"
@@ -180,7 +187,7 @@ const EditorPanel = forwardRef<any, Props>(
               title="Run"
               onClick={runCode}
               disabled={isRunning}
-              className="px-2 py-1 border rounded text-slate-300"
+              className={`px-2 py-1 border rounded text-slate-300 ${isRunning ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <RunIcon />
             </button>
@@ -189,7 +196,7 @@ const EditorPanel = forwardRef<any, Props>(
 
         {/* Monaco Editor */}
         <Editor
-          height="90vh"
+          height={isDesktop ? "100%" : "62vh"}
           beforeMount={setupMonaco}
           defaultValue={templates[language]}
           language={language}
@@ -197,7 +204,16 @@ const EditorPanel = forwardRef<any, Props>(
           theme={theme === "dark" ? "vs-dark" : "light"}
           options={{
             minimap: { enabled: false },
-            fontSize: 18,
+            fontSize: isDesktop ? 16 : 18,
+            lineNumbers: isDesktop ? "on" : "off",   
+            glyphMargin: isDesktop,                   
+            folding: isDesktop,
+            scrollBeyondLastLine: false,
+            automaticLayout: true,
+            scrollbar: { alwaysConsumeMouseWheel: false,
+              vertical: "hidden",
+              horizontal: "hidden"
+            }
           }}
         />
       </div>
