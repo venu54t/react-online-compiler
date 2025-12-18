@@ -186,30 +186,32 @@ export default function App(): JSX.Element {
 
   // Handle desktop resize
   useEffect(() => {
-    function onMove(e: MouseEvent) {
-      if (!draggingRef.current || !containerRef.current) return;
+  function onPointerMove(e: PointerEvent) {
+    if (!draggingSheetRef.current) return;
 
-      const rect = containerRef.current.getBoundingClientRect();
-      const newWidth = rect.right - e.clientX;
-      const minWidth = 200;
-      const maxWidth = rect.width - 400;
+    const newHeight = window.innerHeight - e.clientY;
+    const min = INITIAL_SHEET_HEIGHT;
+    const max = window.innerHeight - min;
 
-      setOutputWidth(Math.max(minWidth, Math.min(maxWidth, newWidth)));
-    }
+    setOutputSheetHeight(Math.max(min, Math.min(max, newHeight)));
+  }
 
-    function onUp() {
-      draggingRef.current = false;
-      document.body.style.cursor = "";
-    }
+  function stopDrag() {
+    draggingSheetRef.current = false;
+    document.body.classList.remove("no-scroll");
+  }
 
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+  window.addEventListener("pointermove", onPointerMove);
+  window.addEventListener("pointerup", stopDrag);
+  window.addEventListener("pointercancel", stopDrag);
 
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, []);
+  return () => {
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", stopDrag);
+    window.removeEventListener("pointercancel", stopDrag);
+  };
+}, []);
+
 
   return (
     <div className={`h-screen flex flex-col ${theme === "dark" ? "dark bg-slate-900" : "light bg-gray-100"}  min-w-0`}>
@@ -255,20 +257,38 @@ export default function App(): JSX.Element {
         {!isDesktop && (
           <div
             className={`fixed left-0 right-0 bottom-0 z-100000 border-t flex flex-col ${theme === "dark" ? "bg-slate-900" : "bg-output-panel-header"} `}
-            style={{ height: outputSheetHeight }}
+            style={{ height: outputSheetHeight, touchAction: 'none', overscrollBehavior: 'contain' }}
           >
             {/* Drag Handle */}
             <div
               onPointerDown={(e) => {
-                e.preventDefault();        
+                e.preventDefault();
+
+                // 🔥 CAPTURE POINTER (CRITICAL FOR iOS)
+                (e.target as HTMLElement).setPointerCapture(e.pointerId);
+
                 draggingSheetRef.current = true;
+
+                // 🔥 DISABLE BODY SCROLL
+                document.body.classList.add("no-scroll");
+              }}
+              onPointerUp={(e) => {
+                draggingSheetRef.current = false;
+
+                // 🔥 RELEASE POINTER
+                (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+
+                // 🔥 RE-ENABLE BODY SCROLL
+                document.body.classList.remove("no-scroll");
               }}
               className="
-              flex items-center justify-center
-              bg-transparent
-              touch-none select-none
-              cursor-row-resize
-            ">
+                flex items-center justify-center
+                cursor-row-resize
+                select-none
+              "
+              style={{
+                touchAction: "none",
+              }}>
               <div className="w-10 h-1 rounded bg-slate-500" />
             </div>
 

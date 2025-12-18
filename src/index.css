@@ -106,3 +106,9 @@ body {
     background-color: #f9fafb !important;
   }
 }
+
+.no-scroll {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
