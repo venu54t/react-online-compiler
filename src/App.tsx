@@ -158,45 +158,31 @@ export default function App(): JSX.Element {
 
   // Handle smaller resize
   useEffect(() => {
-    function onMove(e: MouseEvent) {
+    function onPointerMove(e: PointerEvent) {
       if (!draggingSheetRef.current) return;
 
       const newHeight = window.innerHeight - e.clientY;
-
       const min = INITIAL_SHEET_HEIGHT;
-      const max = window.innerHeight - INITIAL_SHEET_HEIGHT;
+      const max = window.innerHeight - min;
 
-      setOutputSheetHeight(
-        Math.max(min, Math.min(max, newHeight))
-      );
+      setOutputSheetHeight(Math.max(min, Math.min(max, newHeight)));
     }
 
-    function onTouchMove(e: TouchEvent) {
-      if (!draggingSheetRef.current) return;
-      e.preventDefault();
-      setOutputSheetHeight(e.touches[0].clientY);
-    }
-
-    function onUp() {
+    function onPointerUp() {
       draggingSheetRef.current = false;
-      document.body.style.cursor = "";
     }
 
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
-    window.addEventListener("touchend", onUp);
-    window.addEventListener("touchcancel", onUp);
-
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
 
     return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onUp);
-      window.removeEventListener("touchcancel", onUp);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
     };
   }, []);
+
 
   // Handle desktop resize
   useEffect(() => {
@@ -273,13 +259,16 @@ export default function App(): JSX.Element {
           >
             {/* Drag Handle */}
             <div
-              onTouchStart={(e) => {
-                e.preventDefault();
-                startSheetDrag();
+              onPointerDown={(e) => {
+                e.preventDefault();        
+                draggingSheetRef.current = true;
               }}
-              onMouseDown={startSheetDrag}
-              className="cursor-row-resize flex items-center justify-center"
-            >
+              className="
+              flex items-center justify-center
+              bg-transparent
+              touch-none select-none
+              cursor-row-resize
+            ">
               <div className="w-10 h-1 rounded bg-slate-500" />
             </div>
 
