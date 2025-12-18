@@ -173,6 +173,7 @@ export default function App(): JSX.Element {
 
     function onTouchMove(e: TouchEvent) {
       if (!draggingSheetRef.current) return;
+      e.preventDefault();
       setOutputSheetHeight(e.touches[0].clientY);
     }
 
@@ -185,6 +186,7 @@ export default function App(): JSX.Element {
     window.addEventListener("mouseup", onUp);
     window.addEventListener("touchmove", onTouchMove, { passive: false });
     window.addEventListener("touchend", onUp);
+    window.addEventListener("touchcancel", onUp);
 
 
     return () => {
@@ -192,6 +194,7 @@ export default function App(): JSX.Element {
       window.removeEventListener("mouseup", onUp);
       window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("touchend", onUp);
+      window.removeEventListener("touchcancel", onUp);
     };
   }, []);
 
