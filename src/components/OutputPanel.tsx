@@ -27,13 +27,31 @@ const OutputPanel = forwardRef<OutputPanelHandle, Props>(
     const [buffer, setBuffer] = useState("");
     const [blink, setBlink] = useState(true);
     const isDesktop = useIsDesktop();
+    const inputRef = useRef<HTMLInputElement>(null);
 
     // Expose focus() to parent
     useImperativeHandle(ref, () => ({
       focus() {
-        containerRef.current?.focus();
+        if (isDesktop)
+          containerRef.current?.focus();
+        else
+          inputRef.current?.focus();
       },
     }));
+
+    function onMobileKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+      if (e.key === "Enter") {
+        onSend(buffer + "\n");
+        setBuffer("");
+        e.preventDefault();
+      }
+    }
+
+
+    function onMobileInput(e: React.ChangeEvent<HTMLInputElement>) {
+      const value = e.target.value;
+      setBuffer(value);
+    }
 
     // Auto-scroll
     useEffect(() => {
@@ -90,6 +108,18 @@ const OutputPanel = forwardRef<OutputPanelHandle, Props>(
             Clear
           </button>
         </div>
+        {!isDesktop && isRunning && (
+          <input
+            ref={inputRef}
+            value={buffer}
+            onChange={onMobileInput}
+            onKeyDown={onMobileKeyDown}
+            className="absolute opacity-0 pointer-events-none"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+        )}
 
         <div
           ref={containerRef}

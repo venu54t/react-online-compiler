@@ -171,6 +171,11 @@ export default function App(): JSX.Element {
       );
     }
 
+    function onTouchMove(e: TouchEvent) {
+      if (!draggingSheetRef.current) return;
+      setOutputSheetHeight(e.touches[0].clientY);
+    }
+
     function onUp() {
       draggingSheetRef.current = false;
       document.body.style.cursor = "";
@@ -178,10 +183,15 @@ export default function App(): JSX.Element {
 
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+
 
     return () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onUp);
     };
   }, []);
 

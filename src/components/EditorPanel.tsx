@@ -74,8 +74,8 @@ const EditorPanel = forwardRef<any, Props>(
       editorRef.current = editor;
 
       editor.onDidFocusEditorText(() => {
-    onEditorFocus?.();
-  });
+        onEditorFocus?.();
+      });
 
       if (pendingCodeRef.current) {
         editor.setValue(pendingCodeRef.current);
@@ -195,27 +195,39 @@ const EditorPanel = forwardRef<any, Props>(
         </div>
 
         {/* Monaco Editor */}
-        <Editor
-          height={isDesktop ? "100%" : "62vh"}
-          beforeMount={setupMonaco}
-          defaultValue={templates[language]}
-          language={language}
-          onMount={handleMount}
-          theme={theme === "dark" ? "vs-dark" : "light"}
-          options={{
-            minimap: { enabled: false },
-            fontSize: isDesktop ? 16 : 18,
-            lineNumbers: isDesktop ? "on" : "off",   
-            glyphMargin: isDesktop,                   
-            folding: isDesktop,
-            scrollBeyondLastLine: false,
-            automaticLayout: true,
-            scrollbar: { alwaysConsumeMouseWheel: false,
-              vertical: "hidden",
-              horizontal: "hidden"
-            }
+        <div
+          className="flex-1"
+          onTouchStart={() => {
+            onEditorFocus?.();        
+            editorRef.current?.focus();
           }}
-        />
+          onMouseDown={() => {
+            onEditorFocus?.();       
+          }}
+        >
+          <Editor
+            height={isDesktop ? "100%" : "62vh"}
+            beforeMount={setupMonaco}
+            defaultValue={templates[language]}
+            language={language}
+            onMount={handleMount}
+            theme={theme === "dark" ? "vs-dark" : "light"}
+            options={{
+              minimap: { enabled: false },
+              fontSize: isDesktop ? 16 : 18,
+              lineNumbers: isDesktop ? "on" : "off",
+              glyphMargin: isDesktop,
+              folding: isDesktop,
+              scrollBeyondLastLine: false,
+              automaticLayout: true,
+              scrollbar: {
+                alwaysConsumeMouseWheel: false,
+                vertical: "hidden",
+                horizontal: "hidden"
+              }
+            }}
+          />
+        </div>
       </div>
     );
   }
