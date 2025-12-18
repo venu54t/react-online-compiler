@@ -246,6 +246,10 @@ export default function App(): JSX.Element {
 
         {isDesktop && <div
           onMouseDown={startDragging}
+          onTouchStart={(e) => {
+            e.preventDefault();    
+            startSheetDrag();
+          }}
           className="w-1px cursor-col-resize middle-divider"
         />}
 
