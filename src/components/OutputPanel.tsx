@@ -31,9 +31,6 @@ const OutputPanel = forwardRef<OutputPanelHandle, Props>(
 
     const isDesktop = useIsDesktop();
 
-    /* -------------------------------------------------
-       Expose focus (DESKTOP ONLY)
-       ------------------------------------------------- */
     useImperativeHandle(ref, () => ({
       focus() {
         if (isDesktop) {
@@ -42,9 +39,7 @@ const OutputPanel = forwardRef<OutputPanelHandle, Props>(
       },
     }));
 
-    /* -------------------------------------------------
-       MOBILE: focus textarea ONLY while running
-       ------------------------------------------------- */
+    
     useEffect(() => {
       if (isDesktop) return;
 
@@ -60,9 +55,7 @@ const OutputPanel = forwardRef<OutputPanelHandle, Props>(
       }
     }, [isRunning, isDesktop]);
 
-    /* -------------------------------------------------
-       Auto-scroll output (both desktop & mobile)
-       ------------------------------------------------- */
+   
     useEffect(() => {
       containerRef.current?.scrollTo(
         0,
@@ -70,18 +63,14 @@ const OutputPanel = forwardRef<OutputPanelHandle, Props>(
       );
     }, [output]);
 
-    /* -------------------------------------------------
-       Cursor blink (desktop only)
-       ------------------------------------------------- */
+    
     useEffect(() => {
       if (!isDesktop || !isRunning) return;
       const id = setInterval(() => setBlink(b => !b), 500);
       return () => clearInterval(id);
     }, [isRunning, isDesktop]);
 
-    /* -------------------------------------------------
-       DESKTOP key handling
-       ------------------------------------------------- */
+   
     function onDesktopKey(e: React.KeyboardEvent) {
       if (!isRunning) return;
 
@@ -98,9 +87,6 @@ const OutputPanel = forwardRef<OutputPanelHandle, Props>(
       }
     }
 
-    /* -------------------------------------------------
-       MOBILE key handling (textarea)
-       ------------------------------------------------- */
     function onMobileKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
       if (!isRunning) return;
 
@@ -111,18 +97,15 @@ const OutputPanel = forwardRef<OutputPanelHandle, Props>(
       }
     }
 
-    /* -------------------------------------------------
-       UI
-       ------------------------------------------------- */
     return (
       <div className="w-full lg:w-[480px] flex flex-col" style={style}>
         {/* Header */}
-        <div
+       {isDesktop && <div
           className={`px-3 py-2 flex justify-between border-b ${
             theme === "dark" ? "border-slate-700" : "border-gray-300"
           }`}
         >
-          <strong className="px-2 flex items-center text-slate-300">
+          <strong className="px-2 flex items-center filename-color text-slate-300">
             Output
             <span className="ml-2">
               <InfoTooltip
@@ -138,7 +121,7 @@ const OutputPanel = forwardRef<OutputPanelHandle, Props>(
             Clear
           </button>
         </div>
-
+  }
         {/* Output area (shared) */}
         <div
           ref={containerRef}
@@ -147,8 +130,8 @@ const OutputPanel = forwardRef<OutputPanelHandle, Props>(
           className={`flex-1 p-3 font-mono outline-none overflow-auto
             ${
               theme === "dark"
-                ? "bg-black text-green-400"
-                : "bg-white text-gray-800"
+                ? "text-green-400"
+                : "text-gray-800"
             }`}
           style={{ whiteSpace: "break-spaces" }}
         >
@@ -172,7 +155,7 @@ const OutputPanel = forwardRef<OutputPanelHandle, Props>(
             autoCorrect="off"
             spellCheck={false}
             className={`
-              h-12 resize-none outline-none px-3 py-2 font-mono
+              absolute h-12 bottom-0 left-0 right-0  resize-none outline-none px-3 py-2 font-mono
               border-t border-slate-700
               ${
                 theme === "dark"

@@ -1,59 +1,55 @@
-import React, { JSX, use, useEffect, useRef, useState } from "react";
+import React, { JSX, useEffect, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
 import wsClient, { Message } from "./services/ws";
 import OutputPanel, { OutputPanelHandle } from "./components/OutputPanel";
 import Toolbar from "./components/Toolbar";
 import EditorPanel from "./components/EditorPanel";
 import { useIsDesktop } from "./utils/editor-panel";
+import InfoTooltip from "./components/ToolTip";
+import CloseIcon from "./svg/CloseIcon";
 
-const DEFAULT_OUTPUT_WIDTH = 480;
+const DEFAULT_OUTPUT_WIDTH = 600;
 type Theme = "dark" | "light";
 
 export default function App(): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const draggingRef = useRef(false);
 
+  const isDesktop = useIsDesktop();
+
+  const editorRef = useRef<any>(null);
+  const outputRef = useRef<OutputPanelHandle>(null);
+
+
   const [outputWidth, setOutputWidth] = useState(DEFAULT_OUTPUT_WIDTH);
   const [language, setLanguage] = useState("python");
   const [isRunning, setIsRunning] = useState(false);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [output, setOutput] = useState("");
-  const outputRef = useRef<OutputPanelHandle>(null);
-  const isDesktop = useIsDesktop();
-  const INITIAL_SHEET_HEIGHT = Math.round(window.innerHeight * 0.25);
 
-  const [outputSheetHeight, setOutputSheetHeight] = useState(
-    Math.round(INITIAL_SHEET_HEIGHT)
+  /* ---------------- MOBILE FLOATING OUTPUT ---------------- */
+
+  const [showMobileOutput, setShowMobileOutput] = useState(false);
+
+  /* ---------------- THEME ---------------- */
+
+  const [theme, setTheme] = useState<Theme>(() =>
+    (localStorage.getItem("theme") as Theme) || "dark"
   );
-
-  const draggingSheetRef = useRef(false);
 
   function startDragging() {
     draggingRef.current = true;
     document.body.style.cursor = "col-resize";
   }
-
-  function startSheetDrag() {
-    draggingSheetRef.current = true;
-    document.body.style.cursor = "row-resize";
-  }
-
-
-  // THEME (persisted)
-  const [theme, setTheme] = useState<Theme>(() =>
-    (localStorage.getItem("theme") as Theme) || "dark"
-  );
-
-  const editorRef = useRef<any>(null);
-
   useEffect(() => {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
+  /* ---------------- SHARE URL ---------------- */
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const shared = params.get("share");
-
     if (!shared) return;
 
     try {
@@ -62,26 +58,16 @@ export default function App(): JSX.Element {
 
       if (parsed.language && parsed.code) {
         setLanguage(parsed.language);
-
-        // Wait for editor to mount
         setTimeout(() => {
           editorRef.current?.setValue(parsed.code);
         }, 0);
       }
-    } catch (err) {
-      console.error("Invalid shared code URL", err);
+    } catch {
+      console.error("Invalid share URL");
     }
   }, []);
 
-  useEffect(() => {
-    if (!isDesktop) {
-      setOutputWidth(DEFAULT_OUTPUT_WIDTH);
-    }
-    else {
-      setOutputSheetHeight(INITIAL_SHEET_HEIGHT);
-    }
-  }, [isDesktop]);
-
+  /* ---------------- WS HANDLING ---------------- */
 
   function handleMessage(msg: Message) {
     switch (msg.type) {
@@ -92,8 +78,9 @@ export default function App(): JSX.Element {
 
       case "job_started":
         setOutput("");
-        setCurrentJobId(msg.jobId);
         setIsRunning(true);
+        setCurrentJobId(msg.jobId);
+        if (!isDesktop) setShowMobileOutput(true);
         break;
 
       case "job_finished":
@@ -116,23 +103,28 @@ export default function App(): JSX.Element {
     }
   }
 
+  /* ---------------- RUN CODE ---------------- */
+
   function runCode(timeoutMs = 300000) {
     wsClient.disconnect();
     const sessionId = uuid();
     wsClient.connect(handleMessage, sessionId);
 
     setTimeout(() => {
-      let code = editorRef.current?.getValue() ?? "";
-      code.length && wsClient.send({
-        type: "start_job",
-        language,
-        code: code,
-        timeoutMs
-      });
+      const code = editorRef.current?.getValue() ?? "";
+      if (code.length) {
+        wsClient.send({
+          type: "start_job",
+          language,
+          code,
+          timeoutMs,
+        });
+      }
     }, 50);
-    setTimeout(() => {
-      outputRef.current?.focus();
-    }, 0);
+
+    if (isDesktop) {
+      setTimeout(() => outputRef.current?.focus(), 0);
+    }
   }
 
   function sendStdin(txt: string) {
@@ -148,163 +140,135 @@ export default function App(): JSX.Element {
   function shareCode() {
     const payload = {
       language,
-      code: editorRef.current?.getValue() ?? ""
+      code: editorRef.current?.getValue() ?? "",
     };
     const encoded = btoa(encodeURIComponent(JSON.stringify(payload)));
-    const url = `${window.location.origin}?share=${encoded}`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(
+      `${window.location.origin}?share=${encoded}`
+    );
     alert("Share link copied!");
   }
 
-  // Handle smaller resize
+  // Handle drag resize
   useEffect(() => {
-    function onPointerMove(e: PointerEvent) {
-      if (!draggingSheetRef.current) return;
+    function onMove(e: MouseEvent) {
+      if (!draggingRef.current || !containerRef.current) return;
 
-      const newHeight = window.innerHeight - e.clientY;
-      const min = INITIAL_SHEET_HEIGHT;
-      const max = window.innerHeight - min;
+      const rect = containerRef.current.getBoundingClientRect();
+      const newWidth = rect.right - e.clientX;
+      const minWidth = 200;
+      const maxWidth = rect.width - 400;
 
-      setOutputSheetHeight(Math.max(min, Math.min(max, newHeight)));
+      setOutputWidth(Math.max(minWidth, Math.min(maxWidth, newWidth)));
     }
 
-    function onPointerUp() {
-      draggingSheetRef.current = false;
+    function onUp() {
+      draggingRef.current = false;
+      document.body.style.cursor = "";
     }
 
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", onPointerUp);
-    window.addEventListener("pointercancel", onPointerUp);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
 
     return () => {
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-      window.removeEventListener("pointercancel", onPointerUp);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
     };
   }, []);
 
-
-  // Handle desktop resize
-  useEffect(() => {
-  function onPointerMove(e: PointerEvent) {
-    if (!draggingSheetRef.current) return;
-
-    const newHeight = window.innerHeight - e.clientY;
-    const min = INITIAL_SHEET_HEIGHT;
-    const max = window.innerHeight - min;
-
-    setOutputSheetHeight(Math.max(min, Math.min(max, newHeight)));
-  }
-
-  function stopDrag() {
-    draggingSheetRef.current = false;
-    document.body.classList.remove("no-scroll");
-  }
-
-  window.addEventListener("pointermove", onPointerMove);
-  window.addEventListener("pointerup", stopDrag);
-  window.addEventListener("pointercancel", stopDrag);
-
-  return () => {
-    window.removeEventListener("pointermove", onPointerMove);
-    window.removeEventListener("pointerup", stopDrag);
-    window.removeEventListener("pointercancel", stopDrag);
-  };
-}, []);
-
-
   return (
-    <div className={`h-screen flex flex-col ${theme === "dark" ? "dark bg-slate-900" : "light bg-gray-100"}  min-w-0`}>
-
+    <div
+      className={`h-screen flex flex-col ${theme === "dark" ? "dark bg-slate-900" : "light bg-gray-100"
+        }`}
+    >
       <Toolbar theme={theme} />
 
-      <div ref={containerRef} className="flex flex-1 min-h-0">
-        <EditorPanel
-          ref={editorRef}
-          language={language}
-          setLanguage={setLanguage}
-          isRunning={isRunning}
-          runCode={() => runCode()}
-          theme={theme}
-          toggleTheme={() => setTheme(t => (t === "dark" ? "light" : "dark"))}
-          shareCode={shareCode}
-          onEditorFocus={() => {
-            if (!isDesktop) {
-              setOutputSheetHeight(INITIAL_SHEET_HEIGHT);
-            }
-          }}
-        />
-
-        {isDesktop && <div
-          onMouseDown={startDragging}
-          className="w-1px cursor-col-resize middle-divider"
-        />}
-
-        {/* DESKTOP OUTPUT */}
+      <div ref={containerRef} className="flex flex-1 min-h-0 relative">
+        {/* DESKTOP */}
         {isDesktop && (
-          <OutputPanel
-            ref={outputRef}
-            style={{ width: outputWidth }}
-            output={output}
-            onSend={sendStdin}
-            onClear={clearOutput}
-            isRunning={isRunning}
-            theme={theme}
-          />
-        )}
+          <>
 
-        {/* MOBILE / TABLET OUTPUT BOTTOM SHEET */}
-        {!isDesktop && (
-          <div
-            className={`fixed left-0 right-0 bottom-0 z-100000 border-t flex flex-col ${theme === "dark" ? "bg-slate-900" : "bg-output-panel-header"} `}
-            style={{ height: outputSheetHeight, touchAction: 'none', overscrollBehavior: 'contain' }}
-          >
-            {/* Drag Handle */}
-            <div
-              onPointerDown={(e) => {
-                e.preventDefault();
+            <EditorPanel
+              ref={editorRef}
+              language={language}
+              setLanguage={setLanguage}
+              isRunning={isRunning}
+              runCode={runCode}
+              theme={theme}
+              toggleTheme={() =>
+                setTheme(t => (t === "dark" ? "light" : "dark"))
+              }
+              shareCode={shareCode}
 
-                // 🔥 CAPTURE POINTER (CRITICAL FOR iOS)
-                (e.target as HTMLElement).setPointerCapture(e.pointerId);
+            />
 
-                draggingSheetRef.current = true;
-
-                // 🔥 DISABLE BODY SCROLL
-                document.body.classList.add("no-scroll");
-              }}
-              onPointerUp={(e) => {
-                draggingSheetRef.current = false;
-
-                // 🔥 RELEASE POINTER
-                (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-
-                // 🔥 RE-ENABLE BODY SCROLL
-                document.body.classList.remove("no-scroll");
-              }}
-              className="
-                flex items-center justify-center
-                cursor-row-resize
-                select-none
-              "
-              style={{
-                touchAction: "none",
-              }}>
-              <div className="w-10 h-1 rounded bg-slate-500" />
-            </div>
+            {isDesktop && <div
+              onMouseDown={startDragging}
+              className="w-1px cursor-col-resize middle-divider"
+            />}
 
             <OutputPanel
               ref={outputRef}
-              style={{ height: "100%" }}
               output={output}
               onSend={sendStdin}
               onClear={clearOutput}
               isRunning={isRunning}
               theme={theme}
+              style={{ width: outputWidth, overflow: "auto" }}
+
+            />
+
+
+          </>
+        )}
+
+        {/* MOBILE EDITOR */}
+        {!isDesktop && (
+          <EditorPanel
+            ref={editorRef}
+            language={language}
+            setLanguage={setLanguage}
+            isRunning={isRunning}
+            runCode={runCode}
+            theme={theme}
+            toggleTheme={() =>
+              setTheme(t => (t === "dark" ? "light" : "dark"))
+            }
+            shareCode={shareCode}
+            onEditorFocus={() => {
+              if (!isDesktop) {
+                setShowMobileOutput(false);
+              }
+            }}
+          />
+        )}
+
+        {/* MOBILE FLOATING OUTPUT */}
+        {!isDesktop && showMobileOutput && (
+          <div style={{ borderTopLeftRadius: "25px", borderTopRightRadius: "25px"}} className={`absolute left-1 right-1 bottom-0 z-50 h-[55%] flex flex-col ${theme === 'dark' ? "bg-slate-900" : "bg-gray-100" }`}>
+            <div className="flex justify-between items-center px-3 py-2 border-b">
+              <strong className="px-2 flex items-center filename-color text-slate-300">
+                Output
+              </strong>
+              <button
+                onClick={() => setShowMobileOutput(false)}
+                className="px-2 py-1 rounded text-slate-300"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            <OutputPanel
+              ref={outputRef}
+              output={output}
+              onSend={sendStdin}
+              onClear={clearOutput}
+              isRunning={isRunning}
+              theme={theme}
+              style={{overflow: "auto"}}
             />
           </div>
         )}
-
-
       </div>
     </div>
   );

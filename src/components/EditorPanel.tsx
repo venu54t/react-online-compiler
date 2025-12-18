@@ -185,7 +185,7 @@ const EditorPanel = forwardRef<any, Props>(
 
             <button
               title="Run"
-              onClick={runCode}
+              onClick={() => runCode()}
               disabled={isRunning}
               className={`px-2 py-1 border rounded text-slate-300 ${isRunning ? "opacity-50 cursor-not-allowed" : ""}`}
             >
@@ -206,7 +206,7 @@ const EditorPanel = forwardRef<any, Props>(
           }}
         >
           <Editor
-            height={isDesktop ? "100%" : "62vh"}
+            height={"100%"}
             beforeMount={setupMonaco}
             defaultValue={templates[language]}
             language={language}
