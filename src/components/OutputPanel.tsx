@@ -118,6 +118,7 @@ const OutputPanel = forwardRef<OutputPanelHandle, Props>(
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
+            placeholder="enter input"
           />
         )}
 
